@@ -1,0 +1,28 @@
+{
+    "logs": [
+        {
+            "outputFile": "pl.huber.rauto.app-mergeDebugResources-2:/values/values.xml",
+            "map": [
+                {
+                    "source": "D:\\ANDROID\\github\\R_AUTO\\app\\src\\main\\res\\values\\styles.xml",
+                    "from": {
+                        "startLines": "10,1",
+                        "startColumns": "4,4",
+                        "startOffsets": "483,16",
+                        "endLines": "10,9",
+                        "endColumns": "51,12",
+                        "endOffsets": "530,478"
+                    },
+                    "to": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,106",
+                        "endLines": "2,11",
+                        "endColumns": "50,12",
+                        "endOffsets": "101,568"
+                    }
+                }
+            ]
+        }
+    ]
+}

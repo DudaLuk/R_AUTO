@@ -1,0 +1,52 @@
+{
+    "logs": [
+        {
+            "outputFile": "pl.huber.rauto.app-debug-4:/values-v27_values-v27.arsc.flat",
+            "map": [
+                {
+                    "source": "D:\\ANDROID\\github\\R_AUTO\\app\\src\\main\\res\\values-v27\\styles.xml",
+                    "from": {
+                        "startLines": "1",
+                        "startColumns": "4",
+                        "startOffsets": "16",
+                        "endLines": "4",
+                        "endColumns": "12",
+                        "endOffsets": "203"
+                    },
+                    "to": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "5",
+                        "endColumns": "12",
+                        "endOffsets": "242"
+                    }
+                }
+            ]
+        },
+        {
+            "outputFile": "pl.huber.rauto.app-debug-4:/values_values.arsc.flat",
+            "map": [
+                {
+                    "source": "D:\\ANDROID\\github\\R_AUTO\\app\\src\\main\\res\\values\\styles.xml",
+                    "from": {
+                        "startLines": "10,1",
+                        "startColumns": "4,4",
+                        "startOffsets": "483,16",
+                        "endLines": "10,9",
+                        "endColumns": "51,12",
+                        "endOffsets": "530,478"
+                    },
+                    "to": {
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,106",
+                        "endLines": "2,11",
+                        "endColumns": "50,12",
+                        "endOffsets": "101,568"
+                    }
+                }
+            ]
+        }
+    ]
+}

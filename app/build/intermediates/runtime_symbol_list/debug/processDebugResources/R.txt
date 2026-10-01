@@ -1,0 +1,4 @@
+int drawable ic_car 0x7f010000
+int style AppTheme 0x7f020000
+int style BaseAppTheme 0x7f020001
+int xml data_extraction_rules 0x7f030000

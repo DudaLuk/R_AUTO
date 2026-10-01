@@ -1,0 +1,70 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="pl.huber.rauto"
+4    android:versionCode="1"
+5    android:versionName="0.1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+11-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:2:5-71
+11-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:2:22-68
+12    <uses-permission android:name="android.permission.INTERNET" />
+12-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:3:5-67
+12-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:3:22-64
+13
+14    <uses-feature
+14-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:4:5-89
+15        android:name="android.hardware.microphone"
+15-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:4:19-61
+16        android:required="false" />
+16-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:4:62-86
+17
+18    <application
+18-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:5:5-13:19
+19        android:allowBackup="false"
+19-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:5:18-45
+20        android:dataExtractionRules="@xml/data_extraction_rules"
+20-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:5:46-102
+21        android:debuggable="true"
+22        android:extractNativeLibs="false"
+23        android:icon="@drawable/ic_car"
+23-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:5:126-157
+24        android:label="R Auto"
+24-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:5:103-125
+25        android:supportsRtl="true"
+25-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:6:41-67
+26        android:testOnly="true"
+27        android:theme="@style/AppTheme" >
+27-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:6:9-40
+28        <activity
+28-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:7:9-12:20
+29            android:name="pl.huber.rauto.MainActivity"
+29-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:7:19-47
+30            android:exported="true" >
+30-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:7:48-71
+31            <intent-filter>
+31-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:8:13-11:29
+32                <action android:name="android.intent.action.MAIN" />
+32-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:9:17-69
+32-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:9:25-66
+33
+34                <category android:name="android.intent.category.LAUNCHER" />
+34-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:10:17-77
+34-->D:\ANDROID\github\R_AUTO\app\src\main\AndroidManifest.xml:10:27-74
+35            </intent-filter>
+36        </activity>
+37
+38        <provider
+38-->[com.microsoft.cognitiveservices.speech:client-sdk:1.42.0] C:\Users\Łukasz\.gradle\caches\8.9\transforms\781fdcfe98566df391d792eda56d7c93\transformed\client-sdk-1.42.0\AndroidManifest.xml:15:9-18:40
+39            android:name="com.microsoft.cognitiveservices.speech.util.InternalContentProvider"
+39-->[com.microsoft.cognitiveservices.speech:client-sdk:1.42.0] C:\Users\Łukasz\.gradle\caches\8.9\transforms\781fdcfe98566df391d792eda56d7c93\transformed\client-sdk-1.42.0\AndroidManifest.xml:17:13-57
+40            android:authorities="pl.huber.rauto.MicrosoftCognitiveServicesSpeech.InternalContentProvider"
+40-->[com.microsoft.cognitiveservices.speech:client-sdk:1.42.0] C:\Users\Łukasz\.gradle\caches\8.9\transforms\781fdcfe98566df391d792eda56d7c93\transformed\client-sdk-1.42.0\AndroidManifest.xml:16:13-108
+41            android:exported="false" />
+41-->[com.microsoft.cognitiveservices.speech:client-sdk:1.42.0] C:\Users\Łukasz\.gradle\caches\8.9\transforms\781fdcfe98566df391d792eda56d7c93\transformed\client-sdk-1.42.0\AndroidManifest.xml:18:13-37
+42    </application>
+43
+44</manifest>

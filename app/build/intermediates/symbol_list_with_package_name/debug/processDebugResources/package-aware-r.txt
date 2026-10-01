@@ -1,0 +1,5 @@
+pl.huber.rauto
+drawable ic_car
+style AppTheme
+style BaseAppTheme
+xml data_extraction_rules

@@ -1,0 +1,7 @@
+pl.huber.rauto.app-pngs-0 D:\ANDROID\github\R_AUTO\app\build\generated\res\pngs\debug
+pl.huber.rauto.app-resValues-1 D:\ANDROID\github\R_AUTO\app\build\generated\res\resValues\debug
+pl.huber.rauto.app-packageDebugResources-2 D:\ANDROID\github\R_AUTO\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+pl.huber.rauto.app-packageDebugResources-3 D:\ANDROID\github\R_AUTO\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+pl.huber.rauto.app-debug-4 D:\ANDROID\github\R_AUTO\app\build\intermediates\merged_res\debug\mergeDebugResources
+pl.huber.rauto.app-debug-5 D:\ANDROID\github\R_AUTO\app\src\debug\res
+pl.huber.rauto.app-main-6 D:\ANDROID\github\R_AUTO\app\src\main\res
