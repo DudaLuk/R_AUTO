@@ -1,4 +1,0 @@
-pl.huber.rauto:xml/data_extraction_rules = 0x7f030000
-pl.huber.rauto:style/AppTheme = 0x7f020000
-pl.huber.rauto:style/BaseAppTheme = 0x7f020001
-pl.huber.rauto:drawable/ic_car = 0x7f010000
