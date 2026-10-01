@@ -1,8 +1,6 @@
-# R Auto 0.3.0 — Android / Kotlin
+# R Auto 0.4.0 — Android / Kotlin
 
-Gra wspierająca ćwiczenia głoski „r”. Wersja 0.3 dodaje eksperymentalny,
-całkowicie lokalny detektor cech polskiego drżącego „r”. Nie wymaga Azure,
-Amazon, konta, klucza API ani połączenia z internetem.
+Gra wspierająca ćwiczenia głoski „r”. Wersja 0.4 rozwija lokalny detektor z wersji 0.3 o system garażu, monet i ulepszeń samochodu. Nie wymaga Azure, Amazon, konta, klucza API ani połączenia z internetem.
 
 > Automatyczna ocena jest funkcją BETA i elementem gry. Nie jest narzędziem
 > diagnostycznym i nie zastępuje oceny logopedy.
@@ -71,7 +69,9 @@ APK po kompilacji:
 - `RDetector.kt` — eksperymentalny lokalny detektor „r”,
 - `SoundGate.kt` — detektor głośności używany tylko w Laboratorium,
 - `RaceEngine.kt` — mechanika samochodu,
-- `RewardSystem.kt` — punkty, serie i bonusy.
+- `RewardSystem.kt` — XP, serie i bonusy,
+- `GarageSystem.kt` — monety, zakupy i parametry ulepszeń,
+- `RoadView.kt` — wizualizacja samochodu wraz z ulepszeniami.
 
 ## Wersja 0.3.0
 
@@ -82,3 +82,14 @@ APK po kompilacji:
 - dodano `RDetector` i R-score 0–100,
 - automatyczna nagroda wymaga utrzymania wysokiego wyniku,
 - zachowano tryb rodzica i Laboratorium mikrofonu.
+
+
+## Wersja 0.4.0
+
+- dodano osobne monety garażowe niezależne od XP i gwiazdek,
+- udane próby przyznają XP, gwiazdkę i monety,
+- co 10 gwiazdek przyznawany jest dodatkowy bonus monet,
+- dodano ulepszenia: Silnik, Turbo, Opony i Karoseria,
+- ulepszenia zmieniają osiągi i wygląd samochodu, ale nie wpływają na ocenę mowy,
+- dotychczasowe punkty są jednorazowo zamieniane na startową pulę monet,
+- lakiery nadal odblokowują się za gwiazdki.

@@ -26,6 +26,7 @@ class MainActivity : Activity() {
     private val microphone = AudioMonitor(this)
     private val prefs by lazy { getSharedPreferences("progress", MODE_PRIVATE) }
     private lateinit var rewards: RewardSystem
+    private lateinit var garageSystem: GarageSystem
     private lateinit var road: RoadView
     private lateinit var status: TextView
     private lateinit var stats: TextView
@@ -57,6 +58,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         rewards = RewardSystem(prefs)
+        garageSystem = GarageSystem(prefs, rewards.points)
         totalStars = prefs.getInt("stars",0)
         chosenColor = prefs.getInt("car",0).coerceIn(0,2)
         threshold = prefs.getInt("threshold",-35).toDouble()
@@ -79,6 +81,7 @@ class MainActivity : Activity() {
         garage = label("",14,true)
         root.addView(garage)
         road = RoadView(this).apply { carColor = colors[chosenColor] }
+        applyGarageToGame()
         root.addView(road,LinearLayout.LayoutParams(-1,dp(225)).apply { topMargin=dp(12); bottomMargin=dp(10) })
         stats = label("Gotowi do drogi?",19,true)
         root.addView(stats)
@@ -171,7 +174,32 @@ class MainActivity : Activity() {
     private fun updateThreshold() {
         if(::thresholdLabel.isInitialized) thresholdLabel.text="Próg: ${threshold.toInt()} dBFS • w prawo = potrzeba głośniejszego dźwięku"
     }
-    private fun updateGarage() { garage.text="★ $totalStars gwiazdek  •  ${rewards.points} pkt  •  poziom ${rewards.level}  •  seria ${rewards.streak}  •  dopalacze ${rewards.boosters}" }
+    private fun updateGarage() {
+        garage.text="★ $totalStars  •  🪙 ${garageSystem.coins}  •  ${rewards.points} XP  •  poziom ${rewards.level}  •  seria ${rewards.streak}"
+    }
+    private fun applyGarageToGame() {
+        if(!::garageSystem.isInitialized) return
+        engine.configure(
+            garageSystem.baseSpeed,
+            garageSystem.boostSpeed,
+            garageSystem.boostDuration,
+            garageSystem.acceleration
+        )
+        if(::road.isInitialized) {
+            road.engineLevel=garageSystem.engineLevel
+            road.turboLevel=garageSystem.turboLevel
+            road.tiresLevel=garageSystem.tiresLevel
+            road.bodyLevel=garageSystem.bodyLevel
+            road.invalidate()
+        }
+    }
+    private fun garageReward(): Int {
+        val base = 5 + minOf(rewards.streak, 5)
+        val milestone = if(totalStars > 0 && totalStars % 10 == 0) 20 else 0
+        val earned = base + milestone
+        garageSystem.earn(earned)
+        return earned
+    }
     private fun updateControls() {
         if(!::start.isInitialized) return
         mode.isEnabled=!sessionStarted; exercise.isEnabled=!sessionStarted; duration.isEnabled=!sessionStarted
@@ -244,16 +272,18 @@ class MainActivity : Activity() {
         if(!engine.running || !automatic || now-lastReward<1200) return
         lastReward=now;engine.reward(true);totalStars++
         val earned=rewards.correctAttempt()
+        val coins=garageReward()
         prefs.edit().putInt("stars",totalStars).apply();updateGarage()
-        status.text="Brawo! Słyszę R • ${score}/100 • +$earned pkt ★"
+        status.text="Brawo! Słyszę R • ${score}/100 • +$earned XP • +$coins 🪙 ★"
     }
     private fun reward() {
         val now=SystemClock.elapsedRealtime()
         if(!engine.running || laboratory || now-lastReward<800) return
         lastReward=now;engine.reward(true);totalStars++
         val earned = rewards.correctAttempt()
+        val coins=garageReward()
         prefs.edit().putInt("stars",totalStars).apply();updateGarage()
-        status.text="Brawo! +$earned pkt • seria ${rewards.streak} • dopalacz włączony. ★"
+        status.text="Brawo! +$earned XP • +$coins 🪙 • seria ${rewards.streak}. ★"
     }
     private val tick=object:Runnable {
         override fun run() {
@@ -276,20 +306,82 @@ class MainActivity : Activity() {
     }
     private fun showGarage() {
         pauseGame()
-        val names=arrayOf("Słoneczne auto • dostępne","Koralowe auto • 10 gwiazdek","Niebieskie auto • 30 gwiazdek")
-        AlertDialog.Builder(this).setTitle("Garaż • ★ $totalStars • ${rewards.points} pkt")
-            .setItems(names) { _, which ->
-                val needed=intArrayOf(0,10,30)[which]
-                if(totalStars>=needed) {
-                    chosenColor=which;road.carColor=colors[which];road.invalidate()
-                    prefs.edit().putInt("car",which).apply()
-                } else Toast.makeText(this,"Jeszcze ${needed-totalStars} gwiazdek do tego auta",Toast.LENGTH_SHORT).show()
-            }.setNegativeButton("Zamknij",null).show()
+        val scroll=ScrollView(this)
+        val content=LinearLayout(this).apply {
+            orientation=LinearLayout.VERTICAL
+            setPadding(dp(18),dp(8),dp(18),dp(12))
+        }
+        scroll.addView(content)
+        val balance=label("",16,true)
+        content.addView(balance)
+        content.addView(label("Ulepszenia nie wpływają na ocenę wymowy — zmieniają tylko zabawę i wygląd auta.",13))
+
+        fun refreshBalance() {
+            balance.text="★ $totalStars gwiazdek   •   🪙 ${garageSystem.coins} monet   •   ${rewards.points} XP"
+        }
+        fun addUpgrade(upgrade:GarageSystem.Upgrade, description:String) {
+            val row=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(0,dp(7),0,dp(7)) }
+            val title=label("",15,true)
+            val info=label(description,12)
+            val buy=button("",false) { }
+            fun refresh() {
+                val current=garageSystem.level(upgrade)
+                val cost=garageSystem.nextCost(upgrade)
+                title.text="${upgrade.title}  •  poziom $current/${upgrade.maxLevel}"
+                buy.text=if(cost==null) "MAX ✓" else "Ulepsz za $cost 🪙"
+                buy.isEnabled=cost!=null
+            }
+            buy.setOnClickListener {
+                when(val result=garageSystem.buy(upgrade)) {
+                    is GarageSystem.PurchaseResult.Bought -> {
+                        applyGarageToGame(); refreshBalance(); refresh()
+                        Toast.makeText(this,"${upgrade.title}: poziom ${result.level}!",Toast.LENGTH_SHORT).show()
+                    }
+                    is GarageSystem.PurchaseResult.NotEnough -> Toast.makeText(this,"Brakuje ${result.missing} monet",Toast.LENGTH_SHORT).show()
+                    GarageSystem.PurchaseResult.MaxLevel -> Unit
+                }
+            }
+            refresh(); row.addView(title); row.addView(info); row.addView(buy); content.addView(row)
+        }
+
+        refreshBalance()
+        content.addView(label("ULEPSZENIA",12,true))
+        addUpgrade(GarageSystem.Upgrade.ENGINE,"Większa prędkość normalna i mocniejszy dopalacz.")
+        addUpgrade(GarageSystem.Upgrade.TURBO,"Dopalacz po udanej próbie działa dłużej.")
+        addUpgrade(GarageSystem.Upgrade.TIRES,"Auto szybciej reaguje i sprawniej się rozpędza.")
+        addUpgrade(GarageSystem.Upgrade.BODY,"Odblokowuje paski, spojler i bardziej sportowy wygląd.")
+
+        content.addView(label("LAKIERY",12,true))
+        val paintNames=arrayOf("Słoneczny","Koralowy","Niebieski")
+        val paintStars=intArrayOf(0,10,30)
+        for(i in paintNames.indices) {
+            val unlocked=totalStars>=paintStars[i]
+            val selected=i==chosenColor
+            val text=when {
+                selected -> "${paintNames[i]} • wybrany ✓"
+                unlocked -> "${paintNames[i]} • wybierz"
+                else -> "${paintNames[i]} • potrzeba ${paintStars[i]} ★"
+            }
+            val b=button(text,false) {
+                if(totalStars>=paintStars[i]) {
+                    chosenColor=i;road.carColor=colors[i];road.invalidate()
+                    prefs.edit().putInt("car",i).apply()
+                    Toast.makeText(this,"Wybrano lakier: ${paintNames[i]}",Toast.LENGTH_SHORT).show()
+                } else Toast.makeText(this,"Jeszcze ${paintStars[i]-totalStars} gwiazdek",Toast.LENGTH_SHORT).show()
+            }
+            content.addView(b)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Garaż R Auto")
+            .setView(scroll)
+            .setNegativeButton("Zamknij",null)
+            .show()
     }
     private fun help() {
         pauseGame()
         AlertDialog.Builder(this).setTitle("R Auto • dla dorosłego")
-            .setMessage("To prototyp gry wspierającej ćwiczenia ustalone z logopedą. Nie dobiera terapii i nie zastępuje oceny logopedy.\n\nTryb rodzica: wpisz zalecone ćwiczenie. Potwierdź udaną próbę przyciskiem — auto przyspieszy i zdobędzie gwiazdkę.\n\nAutomatyczne R — BETA: aplikacja analizuje dźwięk lokalnie na telefonie i szuka cech typowych dla dźwięcznego, drżącego R. Wynik jest orientacyjny: może czasem zaliczyć podobny dźwięk albo nie rozpoznać poprawnej próby. Nie zapisuje nagrań i nie korzysta z internetu.\n\nLaboratorium: auto reaguje tylko na głośność, także na klaskanie, telewizor i inne głoski. Nie przyznaje gwiazdek.\n\nMikrofon działa tylko podczas aktywnej sesji. Nagrania nie są zapisywane ani wysyłane. Po wyjściu z aplikacji gra pauzuje.\n\nNie wymagaj długiego, ciągłego rrrr. Róbcie przerwy. Ćwiczenia i kryteria poprawności ustalcie z logopedą.")
+            .setMessage("To prototyp gry wspierającej ćwiczenia ustalone z logopedą. Nie dobiera terapii i nie zastępuje oceny logopedy.\n\nTryb rodzica: wpisz zalecone ćwiczenie. Potwierdź udaną próbę przyciskiem — auto przyspieszy i zdobędzie gwiazdkę.\n\nAutomatyczne R — BETA: aplikacja analizuje dźwięk lokalnie na telefonie i szuka cech typowych dla dźwięcznego, drżącego R. Wynik jest orientacyjny: może czasem zaliczyć podobny dźwięk albo nie rozpoznać poprawnej próby. Nie zapisuje nagrań i nie korzysta z internetu.\n\nLaboratorium: auto reaguje tylko na głośność, także na klaskanie, telewizor i inne głoski. Nie przyznaje gwiazdek.\n\nMikrofon działa tylko podczas aktywnej sesji. Nagrania nie są zapisywane ani wysyłane. Po wyjściu z aplikacji gra pauzuje.\n\nGaraż: udane próby dają XP, gwiazdki i monety. Monety można wydawać na silnik, turbo, opony i karoserię. Ulepszenia zmieniają wyłącznie zabawę i wygląd auta — nie wpływają na działanie detektora R.\n\nNie wymagaj długiego, ciągłego rrrr. Róbcie przerwy. Ćwiczenia i kryteria poprawności ustalcie z logopedą.")
             .setPositiveButton("Rozumiem",null).show()
     }
     override fun onResume() { super.onResume();activeForeground=true }
