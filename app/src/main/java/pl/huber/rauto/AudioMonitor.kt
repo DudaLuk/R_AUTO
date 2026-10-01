@@ -15,7 +15,7 @@ class AudioMonitor(private val context: Context) {
     private var capture: Capture? = null
 
     @Synchronized
-    fun start(onLevel: (Double, Int) -> Unit, onError: (String) -> Unit) {
+    fun start(onFrame: (Double, Int, ShortArray, Int) -> Unit, onError: (String) -> Unit) {
         stop()
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             onError("Brak zgody na dostęp do mikrofonu.")
@@ -44,7 +44,9 @@ class AudioMonitor(private val context: Context) {
                         var energy = 0.0
                         for (i in 0 until count) { val v = samples[i] / 32768.0; energy += v * v }
                         val rms = sqrt(energy / count)
-                        onLevel((20 * log10(rms.coerceAtLeast(0.000001))).coerceIn(-120.0, 0.0), (count * 1000 / rate).coerceAtLeast(1))
+                        val db = (20 * log10(rms.coerceAtLeast(0.000001))).coerceIn(-120.0, 0.0)
+                        // Copy because AudioRecord reuses the buffer immediately on the next read.
+                        onFrame(db, (count * 1000 / rate).coerceAtLeast(1), samples.copyOf(count), count)
                     }
                 } catch (e: Exception) {
                     if (current.active) onError(e.message ?: "Błąd mikrofonu")
@@ -64,7 +66,6 @@ class AudioMonitor(private val context: Context) {
     fun stop() {
         capture?.let {
             it.active = false
-            // stop unblocks a pending read; the worker alone releases the object.
             try { it.recorder.stop() } catch (_: Exception) { }
         }
         capture = null

@@ -24,7 +24,6 @@ class MainActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
     private val engine = RaceEngine()
     private val microphone = AudioMonitor(this)
-    private val onlineEvaluator = AzurePronunciationEvaluator()
     private val prefs by lazy { getSharedPreferences("progress", MODE_PRIVATE) }
     private lateinit var rewards: RewardSystem
     private lateinit var road: RoadView
@@ -42,12 +41,11 @@ class MainActivity : Activity() {
     private lateinit var thresholdLabel: TextView
     private lateinit var thresholdSlider: SeekBar
     private var laboratory = false
-    private var online = false
-    private var azureKey = ""
-    private var azureRegion = ""
+    private var automatic = false
     private var sessionStarted = false
     private var generation = 0
     private var gate = SoundGate()
+    private var rDetector = RDetector()
     private var lastFrame = 0L
     private var threshold = -35.0
     private var lastReward = 0L
@@ -60,8 +58,6 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         rewards = RewardSystem(prefs)
         totalStars = prefs.getInt("stars",0)
-        azureKey = prefs.getString("azure_key","") ?: ""
-        azureRegion = prefs.getString("azure_region","") ?: ""
         chosenColor = prefs.getInt("car",0).coerceIn(0,2)
         threshold = prefs.getInt("threshold",-35).toDouble()
         val scroll = ScrollView(this).apply { setBackgroundColor(cream); isFillViewport = true }
@@ -91,15 +87,15 @@ class MainActivity : Activity() {
         root.addView(label("TRYB ZABAWY",12,true))
         mode = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
-                listOf("Z rodzicem — dorosły ocenia próbę","Ocena wymowy online — Azure Speech","Laboratorium — reaguje na dźwięk"))
+                listOf("Z rodzicem — dorosły ocenia próbę","Automatyczne R — BETA (offline)","Laboratorium — reaguje na dźwięk"))
             onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(parent: android.widget.AdapterView<*>?) = Unit
                 override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    online = position == 1
+                    automatic = position == 1
                     laboratory = position == 2
                     updateControls()
                     status.text = if (laboratory) "TEST: każdy głośniejszy dźwięk może napędzić auto. To NIE jest ocena głoski r."
-                        else if (online) "Azure Speech oceni próbę po połączeniu internetowym."
+                        else if (automatic) "Automatyczny detektor R działa lokalnie na telefonie. To funkcja BETA, nie diagnoza logopedyczna."
                         else "Rodzic ocenia próbę zgodnie ze wskazówkami logopedy."
                 }
             }
@@ -139,7 +135,7 @@ class MainActivity : Activity() {
         start=button("Start podróży") { onStartPressed() }
         root.addView(start)
         val actions=LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
-        correct=button("Udana próba ★") { if (online) assessOnline() else reward() }
+        correct=button("Udana próba ★") { reward() }
         retry=button("Jeszcze próbujemy",false) {
             engine.retry(); rewards.missedAttempt(); updateGarage(); status.text="Spokojnie, spróbuj jeszcze raz. Auto jedzie dalej."
         }
@@ -179,12 +175,14 @@ class MainActivity : Activity() {
     private fun updateControls() {
         if(!::start.isInitialized) return
         mode.isEnabled=!sessionStarted; exercise.isEnabled=!sessionStarted; duration.isEnabled=!sessionStarted
-        correct.isEnabled=engine.running && !laboratory
-        retry.isEnabled=engine.running && !laboratory
+        correct.isEnabled=engine.running && !laboratory && !automatic
+        retry.isEnabled=engine.running && !laboratory && !automatic
         if(::end.isInitialized) end.isEnabled=sessionStarted
         start.text=if(engine.running) "Pauza" else if(sessionStarted) "Wznów podróż" else "Start podróży"
-        val visibility=if(laboratory) View.VISIBLE else View.GONE
-        level.visibility=visibility; thresholdLabel.visibility=visibility; thresholdSlider.visibility=visibility
+        level.visibility=if(laboratory || automatic) View.VISIBLE else View.GONE
+        thresholdLabel.visibility=if(laboratory || automatic) View.VISIBLE else View.GONE
+        thresholdSlider.visibility=if(laboratory) View.VISIBLE else View.GONE
+        if(automatic) thresholdLabel.text="R-score: analiza lokalna • wynik orientacyjny" else updateThreshold()
         if(engine.running) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
@@ -193,7 +191,7 @@ class MainActivity : Activity() {
         if(!sessionStarted && exercise.text.toString().isBlank() && !laboratory) {
             exercise.error="Wpisz ćwiczenie ustalone z logopedą"; return
         }
-        if((laboratory || online) && checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {
+        if((laboratory || automatic) && checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO),101);return
         }
         begin()
@@ -205,22 +203,34 @@ class MainActivity : Activity() {
         else engine.resume()
         lastFrame=SystemClock.elapsedRealtime();lastReward=0L
         status.text=if(laboratory) "Nasłuch testowy: dźwięk daje dopalacz. Brak oceny wymowy."
-            else if (online) "Naciśnij Udana próba, aby nagrać i ocenić wypowiedź online."
+            else if (automatic) "Słucham lokalnie. Mów spokojnie — gdy wykryję cechy R, auto dostanie dopalacz."
             else "Twoje ćwiczenie: ${exercise.text.toString().trim()}"
         updateControls()
         handler.removeCallbacks(tick);handler.post(tick)
-        if(laboratory) startMicrophone()
+        if(laboratory || automatic) startMicrophone()
     }
     private fun startMicrophone() {
         gate=SoundGate()
+        rDetector.reset()
         val token=++generation
-        microphone.start({ db, durationMs ->
+        microphone.start({ db, durationMs, samples, count ->
+            // Analysis runs on the microphone thread; only compact UI updates go to main thread.
+            val evaluation = if(automatic) rDetector.accept(samples,count,db,durationMs) else null
             handler.post {
-                if(token==generation && engine.running && laboratory) {
-                    level.progress=((db+60)/60*100).toInt().coerceIn(0,100)
-                    if(gate.accept(db,threshold,durationMs)) {
-                        engine.reward(false)
-                        status.text="Słyszę dźwięk! To test mikrofonu, nie ocena r."
+                if(token==generation && engine.running) {
+                    if(laboratory) {
+                        level.progress=((db+60)/60*100).toInt().coerceIn(0,100)
+                        if(gate.accept(db,threshold,durationMs)) {
+                            engine.reward(false)
+                            status.text="Słyszę dźwięk! To test mikrofonu, nie ocena r."
+                        }
+                    } else if(automatic && evaluation!=null) {
+                        level.progress=evaluation.score
+                        if(evaluation.detected) {
+                            rewardAutomatic(evaluation.score)
+                        } else if(evaluation.score >= 45) {
+                            status.text="Słyszę próbę… R-score ${evaluation.score}/100. Jeszcze odrobina i auto przyspieszy."
+                        }
                     }
                 }
             }
@@ -228,32 +238,14 @@ class MainActivity : Activity() {
             handler.post { if(token==generation) { pauseGame(); status.text="$message Tryb rodzica działa bez mikrofonu." } }
         })
     }
-    private fun stopMicrophone() { generation++;microphone.stop();if(::level.isInitialized) level.progress=0 }
-    private fun assessOnline() {
-        if (!engine.running || !activeForeground) return
-        if (azureKey.isBlank() || azureRegion.isBlank()) { showAzureSettings(); return }
-        correct.isEnabled = false; retry.isEnabled = false
-        status.text = "Słucham… powiedz wyraźnie: ${exercise.text}"
-        onlineEvaluator.assess(exercise.text.toString(), azureKey, azureRegion) { result ->
-            handler.post {
-                if (!engine.running) return@post
-                correct.isEnabled = true; retry.isEnabled = true
-                if (result.error != null) { status.text = result.error; return@post }
-                val score = result.score
-                if (score >= 70.0) { reward(); status.text = "Wynik wymowy: ${score.toInt()}/100 — dopalacz! ★" }
-                else { engine.retry(); rewards.missedAttempt(); updateGarage(); status.text = "Wynik wymowy: ${score.toInt()}/100. Spróbuj spokojnie jeszcze raz." }
-            }
-        }
-    }
-    private fun showAzureSettings() {
-        val box = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(dp(24),0,dp(24),0) }
-        val key = EditText(this).apply { hint="Klucz Azure Speech"; setText(azureKey); inputType=129 }
-        val region = EditText(this).apply { hint="Region, np. westeurope"; setText(azureRegion) }
-        box.addView(key); box.addView(region)
-        AlertDialog.Builder(this).setTitle("Konfiguracja oceny online")
-            .setMessage("Załóż zasób Azure AI Speech, włącz Pronunciation Assessment i wpisz klucz oraz region. Klucz jest przechowywany lokalnie na tym telefonie.")
-            .setView(box).setNegativeButton("Anuluj",null)
-            .setPositiveButton("Zapisz") { _, _ -> azureKey=key.text.toString().trim(); azureRegion=region.text.toString().trim(); prefs.edit().putString("azure_key",azureKey).putString("azure_region",azureRegion).apply(); assessOnline() }.show()
+    private fun stopMicrophone() { generation++;microphone.stop();rDetector.reset();if(::level.isInitialized) level.progress=0 }
+    private fun rewardAutomatic(score:Int) {
+        val now=SystemClock.elapsedRealtime()
+        if(!engine.running || !automatic || now-lastReward<1200) return
+        lastReward=now;engine.reward(true);totalStars++
+        val earned=rewards.correctAttempt()
+        prefs.edit().putInt("stars",totalStars).apply();updateGarage()
+        status.text="Brawo! Słyszę R • ${score}/100 • +$earned pkt ★"
     }
     private fun reward() {
         val now=SystemClock.elapsedRealtime()
@@ -269,10 +261,11 @@ class MainActivity : Activity() {
             val now=SystemClock.elapsedRealtime()
             val completed=engine.update((now-lastFrame)/1000f);lastFrame=now
             road.speed=engine.speed;road.distance=engine.distance;road.invalidate()
-            stats.text="${engine.speed.toInt()} km/h  •  ${ceil(engine.remaining).toInt()} s  •  ${if(laboratory) "TEST" else "★ ${engine.stars}"}"
+            stats.text="${engine.speed.toInt()} km/h  •  ${ceil(engine.remaining).toInt()} s  •  ${if(laboratory) "TEST" else if(automatic) "R BETA • ★ ${engine.stars}" else "★ ${engine.stars}"}"
             if(completed) {
                 stopMicrophone();sessionStarted=false;updateControls()
                 status.text=if(laboratory) "Koniec testu mikrofonu. Nie oceniano poprawności wymowy."
+                    else if(automatic) "Meta! Automatyczny detektor przyznał ${engine.stars} gwiazdek. Wynik ma charakter zabawowy."
                     else "Meta! Zdobyte gwiazdki: ${engine.stars}. Czas na odpoczynek."
             } else handler.postDelayed(this,16)
         }
@@ -296,12 +289,12 @@ class MainActivity : Activity() {
     private fun help() {
         pauseGame()
         AlertDialog.Builder(this).setTitle("R Auto • dla dorosłego")
-            .setMessage("To prototyp gry wspierającej ćwiczenia ustalone z logopedą. Nie dobiera terapii i nie ocenia automatycznie głoski r.\n\nTryb rodzica: wpisz zalecone ćwiczenie. Potwierdź udaną próbę przyciskiem — auto przyspieszy i zdobędzie gwiazdkę. Przy kolejnej próbie możesz wyłączyć dopalacz przyciskiem Jeszcze próbujemy.\n\nLaboratorium: auto reaguje na głośność, także na klaskanie, telewizor i inne głoski. Nie przyznaje gwiazdek. Dostosuj próg do otoczenia; nie zachęcaj dziecka do krzyku.\n\nMikrofon działa tylko podczas testowej sesji na ekranie. Nagrania nie są zapisywane ani wysyłane. Po wyjściu z aplikacji gra pauzuje. Obrót ekranu kończy bieżącą trasę; zdobyte gwiazdki pozostają.\n\nNie wymagaj długiego, ciągłego rrrr. Róbcie przerwy. Ćwiczenia i kryteria poprawności ustalcie z logopedą.")
+            .setMessage("To prototyp gry wspierającej ćwiczenia ustalone z logopedą. Nie dobiera terapii i nie zastępuje oceny logopedy.\n\nTryb rodzica: wpisz zalecone ćwiczenie. Potwierdź udaną próbę przyciskiem — auto przyspieszy i zdobędzie gwiazdkę.\n\nAutomatyczne R — BETA: aplikacja analizuje dźwięk lokalnie na telefonie i szuka cech typowych dla dźwięcznego, drżącego R. Wynik jest orientacyjny: może czasem zaliczyć podobny dźwięk albo nie rozpoznać poprawnej próby. Nie zapisuje nagrań i nie korzysta z internetu.\n\nLaboratorium: auto reaguje tylko na głośność, także na klaskanie, telewizor i inne głoski. Nie przyznaje gwiazdek.\n\nMikrofon działa tylko podczas aktywnej sesji. Nagrania nie są zapisywane ani wysyłane. Po wyjściu z aplikacji gra pauzuje.\n\nNie wymagaj długiego, ciągłego rrrr. Róbcie przerwy. Ćwiczenia i kryteria poprawności ustalcie z logopedą.")
             .setPositiveButton("Rozumiem",null).show()
     }
     override fun onResume() { super.onResume();activeForeground=true }
     override fun onPause() { activeForeground=false;pauseGame();super.onPause() }
-    override fun onDestroy() { handler.removeCallbacksAndMessages(null);stopMicrophone();onlineEvaluator.close();super.onDestroy() }
+    override fun onDestroy() { handler.removeCallbacksAndMessages(null);stopMicrophone();super.onDestroy() }
     override fun onRequestPermissionsResult(requestCode:Int,permissions:Array<out String>,grantResults:IntArray) {
         super.onRequestPermissionsResult(requestCode,permissions,grantResults)
         if(requestCode==101) {

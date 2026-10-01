@@ -1,6 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <application android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:label="R Auto" android:icon="@drawable/ic_car"
         android:theme="@style/AppTheme" android:supportsRtl="true">
