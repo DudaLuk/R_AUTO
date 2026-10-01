@@ -2,7 +2,9 @@ package pl.huber.rauto
 
 import android.content.Context
 import android.graphics.*
+import android.os.SystemClock
 import android.view.View
+import kotlin.math.cos
 import kotlin.math.sin
 
 /** Procedural scenery; no downloaded assets or continuous sound from the speaker. */
@@ -14,9 +16,15 @@ class RoadView(context: Context) : View(context) {
     var turboLevel = 0
     var tiresLevel = 0
     var bodyLevel = 0
+    private var capybaraVisibleUntilMs = 0L
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val flame = Path()
     init { contentDescription = "Samochód na trasie. Prędkość jest podana nad planszą." }
+    fun showCapybaraDance(durationMs: Long = 3500L) {
+        capybaraVisibleUntilMs = SystemClock.elapsedRealtime() + durationMs.coerceAtLeast(600L)
+        invalidate()
+    }
+
     private fun box(c: Canvas, color: Int, l: Float, t: Float, r: Float, b: Float, radius: Float = 0f) {
         p.color = color; c.drawRoundRect(l,t,r,b,radius,radius,p)
     }
@@ -88,6 +96,51 @@ class RoadView(context: Context) : View(context) {
                 p.color=Color.rgb(90,110,108)
                 c.drawCircle(wheel,y+47,2.5f,p)
             }
+        }
+        if (SystemClock.elapsedRealtime() < capybaraVisibleUntilMs) {
+            val t = SystemClock.elapsedRealtime() / 1000f
+            val sway = sin(t * 7.5f) * 5.5f
+            val bounce = kotlin.math.abs(sin(t * 7.5f)) * 4f
+            val capX = 285f + cos(t * 2.4f) * 10f
+            val capY = 166f - bounce
+
+            p.color = Color.argb(55, 0, 0, 0)
+            c.drawOval(capX - 28f, capY + 56f, capX + 38f, capY + 67f, p)
+
+            p.color = Color.rgb(146, 104, 66)
+            c.drawOval(capX - 22f, capY + 15f, capX + 26f, capY + 52f, p)
+            c.drawOval(capX + 10f, capY + 8f, capX + 34f, capY + 28f, p)
+
+            p.color = Color.rgb(123, 82, 49)
+            c.drawOval(capX + 14f, capY + 4f, capX + 20f, capY + 14f, p)
+            c.drawOval(capX + 25f, capY + 5f, capX + 31f, capY + 15f, p)
+
+            p.color = Color.rgb(84, 58, 37)
+            c.drawCircle(capX + 26f, capY + 17f, 1.6f, p)
+            c.drawCircle(capX + 18f, capY + 17f, 1.6f, p)
+            c.drawCircle(capX + 31f, capY + 22f, 1.2f, p)
+
+            p.strokeWidth = 4f
+            p.color = Color.rgb(146, 104, 66)
+            c.drawLine(capX - 12f, capY + 47f, capX - 13f - sway, capY + 61f, p)
+            c.drawLine(capX + 1f, capY + 47f, capX + 2f + sway, capY + 60f, p)
+            c.drawLine(capX + 14f, capY + 48f, capX + 14f - sway, capY + 62f, p)
+            c.drawLine(capX + 25f, capY + 47f, capX + 24f + sway, capY + 60f, p)
+
+            p.color = Color.rgb(84, 58, 37)
+            c.drawCircle(capX - 13f - sway, capY + 61f, 2.5f, p)
+            c.drawCircle(capX + 2f + sway, capY + 60f, 2.5f, p)
+            c.drawCircle(capX + 14f - sway, capY + 62f, 2.5f, p)
+            c.drawCircle(capX + 24f + sway, capY + 60f, 2.5f, p)
+
+            p.strokeWidth = 3f
+            p.color = Color.rgb(255, 205, 96)
+            c.drawLine(capX - 30f, capY + 18f, capX - 38f, capY + 10f + sway * 0.3f, p)
+            c.drawLine(capX - 38f, capY + 10f + sway * 0.3f, capX - 37f, capY + 18f + sway * 0.3f, p)
+            c.drawLine(capX - 38f, capY + 10f + sway * 0.3f, capX - 45f, capY + 12f, p)
+            c.drawLine(capX + 44f, capY + 16f, capX + 52f, capY + 8f - sway * 0.3f, p)
+            c.drawLine(capX + 52f, capY + 8f - sway * 0.3f, capX + 52f, capY + 16f - sway * 0.2f, p)
+            c.drawLine(capX + 52f, capY + 8f - sway * 0.3f, capX + 58f, capY + 11f, p)
         }
         c.restore()
     }

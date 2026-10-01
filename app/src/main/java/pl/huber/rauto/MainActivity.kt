@@ -53,6 +53,8 @@ class MainActivity : Activity() {
     private var totalStars = 0
     private var activeForeground = false
     private var chosenColor = 0
+    private val capybaraComboEvery = 3
+    private val capybaraBonusCoins = 15
     private val colors = intArrayOf(Color.rgb(246,183,69),Color.rgb(232,109,85),Color.rgb(69,147,202))
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -175,7 +177,7 @@ class MainActivity : Activity() {
         if(::thresholdLabel.isInitialized) thresholdLabel.text="Próg: ${threshold.toInt()} dBFS • w prawo = potrzeba głośniejszego dźwięku"
     }
     private fun updateGarage() {
-        garage.text="★ $totalStars  •  🪙 ${garageSystem.coins}  •  ${rewards.points} XP  •  poziom ${rewards.level}  •  seria ${rewards.streak}"
+        garage.text="★ $totalStars  •  🪙 ${garageSystem.coins}  •  ${rewards.points} XP  •  poziom ${rewards.level}  •  seria ${rewards.streak}  •  kapibara co 3 R"
     }
     private fun applyGarageToGame() {
         if(!::garageSystem.isInitialized) return
@@ -199,6 +201,12 @@ class MainActivity : Activity() {
         val earned = base + milestone
         garageSystem.earn(earned)
         return earned
+    }
+    private fun capybaraComboBonus(): Int {
+        if(rewards.streak <= 0 || rewards.streak % capybaraComboEvery != 0) return 0
+        road.showCapybaraDance()
+        garageSystem.earn(capybaraBonusCoins)
+        return capybaraBonusCoins
     }
     private fun updateControls() {
         if(!::start.isInitialized) return
@@ -273,8 +281,12 @@ class MainActivity : Activity() {
         lastReward=now;engine.reward(true);totalStars++
         val earned=rewards.correctAttempt()
         val coins=garageReward()
+        val comboCoins=capybaraComboBonus()
         prefs.edit().putInt("stars",totalStars).apply();updateGarage()
-        status.text="Brawo! Słyszę R • ${score}/100 • +$earned XP • +$coins 🪙 ★"
+        status.text=if(comboCoins>0)
+            "Brawo! Słyszę R • ${score}/100 • +$earned XP • +$coins 🪙 • KAPIBARA! +$comboCoins 🪙 ★"
+        else
+            "Brawo! Słyszę R • ${score}/100 • +$earned XP • +$coins 🪙 ★"
     }
     private fun reward() {
         val now=SystemClock.elapsedRealtime()
@@ -282,8 +294,12 @@ class MainActivity : Activity() {
         lastReward=now;engine.reward(true);totalStars++
         val earned = rewards.correctAttempt()
         val coins=garageReward()
+        val comboCoins=capybaraComboBonus()
         prefs.edit().putInt("stars",totalStars).apply();updateGarage()
-        status.text="Brawo! +$earned XP • +$coins 🪙 • seria ${rewards.streak}. ★"
+        status.text=if(comboCoins>0)
+            "Brawo! +$earned XP • +$coins 🪙 • seria ${rewards.streak}. KAPIBARA TAŃCZY! +$comboCoins 🪙 ★"
+        else
+            "Brawo! +$earned XP • +$coins 🪙 • seria ${rewards.streak}. ★"
     }
     private val tick=object:Runnable {
         override fun run() {
@@ -315,6 +331,7 @@ class MainActivity : Activity() {
         val balance=label("",16,true)
         content.addView(balance)
         content.addView(label("Ulepszenia nie wpływają na ocenę wymowy — zmieniają tylko zabawę i wygląd auta.",13))
+        content.addView(label("Bonus specjalny: po 3 poprawnych R pod rząd na ulicę wbiega tańcząca kapibara i daje +$capybaraBonusCoins monet.",12))
 
         fun refreshBalance() {
             balance.text="★ $totalStars gwiazdek   •   🪙 ${garageSystem.coins} monet   •   ${rewards.points} XP"
@@ -381,7 +398,7 @@ class MainActivity : Activity() {
     private fun help() {
         pauseGame()
         AlertDialog.Builder(this).setTitle("R Auto • dla dorosłego")
-            .setMessage("To prototyp gry wspierającej ćwiczenia ustalone z logopedą. Nie dobiera terapii i nie zastępuje oceny logopedy.\n\nTryb rodzica: wpisz zalecone ćwiczenie. Potwierdź udaną próbę przyciskiem — auto przyspieszy i zdobędzie gwiazdkę.\n\nAutomatyczne R — BETA: aplikacja analizuje dźwięk lokalnie na telefonie i szuka cech typowych dla dźwięcznego, drżącego R. Wynik jest orientacyjny: może czasem zaliczyć podobny dźwięk albo nie rozpoznać poprawnej próby. Nie zapisuje nagrań i nie korzysta z internetu.\n\nLaboratorium: auto reaguje tylko na głośność, także na klaskanie, telewizor i inne głoski. Nie przyznaje gwiazdek.\n\nMikrofon działa tylko podczas aktywnej sesji. Nagrania nie są zapisywane ani wysyłane. Po wyjściu z aplikacji gra pauzuje.\n\nGaraż: udane próby dają XP, gwiazdki i monety. Monety można wydawać na silnik, turbo, opony i karoserię. Ulepszenia zmieniają wyłącznie zabawę i wygląd auta — nie wpływają na działanie detektora R.\n\nNie wymagaj długiego, ciągłego rrrr. Róbcie przerwy. Ćwiczenia i kryteria poprawności ustalcie z logopedą.")
+            .setMessage("To prototyp gry wspierającej ćwiczenia ustalone z logopedą. Nie dobiera terapii i nie zastępuje oceny logopedy.\n\nTryb rodzica: wpisz zalecone ćwiczenie. Potwierdź udaną próbę przyciskiem — auto przyspieszy i zdobędzie gwiazdkę.\n\nAutomatyczne R — BETA: aplikacja analizuje dźwięk lokalnie na telefonie i szuka cech typowych dla dźwięcznego, drżącego R. Wynik jest orientacyjny: może czasem zaliczyć podobny dźwięk albo nie rozpoznać poprawnej próby. Nie zapisuje nagrań i nie korzysta z internetu.\n\nLaboratorium: auto reaguje tylko na głośność, także na klaskanie, telewizor i inne głoski. Nie przyznaje gwiazdek.\n\nMikrofon działa tylko podczas aktywnej sesji. Nagrania nie są zapisywane ani wysyłane. Po wyjściu z aplikacji gra pauzuje.\n\nGaraż: udane próby dają XP, gwiazdki i monety. Monety można wydawać na silnik, turbo, opony i karoserię. Ulepszenia zmieniają wyłącznie zabawę i wygląd auta — nie wpływają na działanie detektora R.\n\nBonus specjalny: po każdych 3 poprawnych R pod rząd pojawia się tańcząca kapibara i wpada dodatkowe $capybaraBonusCoins monet.\n\nNie wymagaj długiego, ciągłego rrrr. Róbcie przerwy. Ćwiczenia i kryteria poprawności ustalcie z logopedą.")
             .setPositiveButton("Rozumiem",null).show()
     }
     override fun onResume() { super.onResume();activeForeground=true }
